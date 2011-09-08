@@ -64,7 +64,7 @@ homepagetext = """
 					    </p>
 					    <p>
 						<br/>
-						dlvritPlus feeds are for use with dlvr.it. Other uses of dlvitPlus feeds may be rate limited.
+						dlvritPlus feeds are for use with <a href="http://dlvr.it/>dlvr.it</a>. Other uses of dlvitPlus feeds may be rate limited.
 					    </p>
 					    <p>
 					    <small>
