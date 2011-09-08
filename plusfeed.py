@@ -159,20 +159,21 @@ class MainPage(webapp.RequestHandler):
 		upstr = now.strftime(ATOM_DATE)
 		if not unrestricted:
 			logging.debug('Beginning rate limit check for ' + str(ip))
-			req_count = None
-			try:
-				req_count = memcache.incr("ratelimit:" + p)
-			except:
+			if p != '111091089527727420853':
 				req_count = None
-			
-			if req_count:
-				if req_count > 5:
-					logging.debug('rate limited - returning 403 - ' + str(p) + " __ " + str(req_count))
-					res.set_status(403)
-					out.write(ratelimit.substitute(up = upstr, p = p))
-					return
-			else:
-				memcache.set("ratelimit:" + p, 1, 43200)
+				try:
+					req_count = memcache.incr("ratelimit:" + p)
+				except:
+					req_count = None
+				
+				if req_count:
+					if req_count > 5:
+						logging.debug('rate limited - returning 403 - ' + str(p) + " __ " + str(req_count))
+						res.set_status(403)
+						out.write(ratelimit.substitute(up = upstr, p = p))
+						return
+				else:
+					memcache.set("ratelimit:" + p, 1, 43200)
 
 			
 			ip = environ['REMOTE_ADDR']
