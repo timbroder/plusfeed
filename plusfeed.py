@@ -36,17 +36,17 @@ ATOM_DATE = "%Y-%m-%dT%H:%M:%SZ"
 homepagetext = """
 	<html>
 		<head>
-		<title>PlusFeed - Unofficial Google+ User Feeds</title>
+		<title>dlvritPlus - Unofficial Google+ User Feeds</title>
 		<link rel="stylesheet" type="text/css" href="/style.css">
 		<script type="text/javascript" src="https://apis.google.com/js/plusone.js"></script>
 		</head>
 		<body>
 			<div id="gb">
 				<span>$countmsg</span>
-				<a href="http://plus.google.com">Google+</a>
+				<a href="http://plus.google.com/">Google+</a>
 			</div>
 			<div id="header">
-				<h1>PlusFeed</h1>
+				<h1>dlvritPlus</h1>
 				<h2>Unofficial Google+ User Feeds</h2>
 				<span id="plusone"><g:plusone size="tall"></g:plusone></span>
 			</div>
@@ -56,19 +56,22 @@ homepagetext = """
 					Want a <span class="stress">feed</span> for your Google+ posts?
 					</h2>
 					<div id="inst">
-					<p>
-					Simply add a Google+ user number to the end of this site's URL to get an Atom feed of <em>public</em> posts.
-					</p>
-					<p>
-				   Example: <a href="http://dlvritplus.appspot.com/111091089527727420853">http://dlvritplus.appspot.com/<strong>111091089527727420853</strong></a>
-					</p>
-					<p>
-					<br/>
-					You can grab the source for this app on GitHub <a href="https://github.com/signe/plusfeed">here</a>.
-					</p>
-					<p>
-					<em>Originally created by <a href="http://www.russellbeattie.com">Russell Beattie</a></em>
-					</p>
+					    <p>
+						Simply add a Google+ user number to the end of this site's URL to get an Atom feed of <em>public</em> posts.
+					    </p>
+					    <p>
+						Example: <a href="http://dlvritplus.appspot.com/111091089527727420853">http://dlvritplus.appspot.com/<strong>111091089527727420853</strong></a>
+					    </p>
+					    <p>
+						<br/>
+						dlvritPlus feeds are for use with dlvr.it. Other uses of dlvitPlus feeds may be rate limited.
+					    </p>
+					    <p>
+					    <small>
+						<em>Originally created by <a href="http://www.russellbeattie.com">Russell Beattie</a></em><br/>
+						You can grab the source for this app on GitHub <a href="https://github.com/signe/plusfeed">here</a>.
+					    </small>
+					    </p>
 					</div>
 				</div>
 			</div>
