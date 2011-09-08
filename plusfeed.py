@@ -60,7 +60,7 @@ homepagetext = """
 					Simply add a Google+ user number to the end of this site's URL to get an Atom feed of <em>public</em> posts.
 					</p>
 					<p>
-				   Example: <a href="http://dlvritplus.appspot.com/104961845171318028721">http://dlvritplus.appspot.com/<strong>104961845171318028721</strong></a>
+				   Example: <a href="http://dlvritplus.appspot.com/111091089527727420853">http://dlvritplus.appspot.com/<strong>111091089527727420853</strong></a>
 					</p>
 					<p>
 					<br/>
