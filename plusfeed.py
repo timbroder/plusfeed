@@ -64,7 +64,7 @@ homepagetext = """
 					    </p>
 					    <p>
 						<br/>
-						dlvritPlus feeds are for use with <a href="http://dlvr.it/>dlvr.it</a>. Other uses of dlvitPlus feeds may be rate limited.
+						dlvritPlus feeds are for use with <a href="http://dlvr.it/">dlvr.it</a>. Other uses of dlvitPlus feeds may be rate limited.
 					    </p>
 					    <p>
 					    <small>
@@ -347,6 +347,8 @@ class MainPage(webapp.RequestHandler):
 					if post[66]:
 						
 						if post[66][0][1]:						
+							if (post[66][0][3]) is None:
+								continue
 							desc = desc + ' <br/><br/><a href="' + post[66][0][1] + '">' + post[66][0][3] + '</a>'
 
 						if post[66][0][6]:
@@ -359,13 +361,15 @@ class MainPage(webapp.RequestHandler):
 									sys.exc_clear()
 					
 					if desc == '':
-						desc = permalink					
-					
-					
-					ptitle = self.htmldecode(desc)
-					ptitle = remtags.sub(' ', ptitle)
-					ptitle = remspaces.sub(' ', ptitle)
-					
+						ptitle = permalink					
+					else: 
+						ptitle = self.htmldecode(desc)
+						ptitle = remtags.sub(' ', ptitle)
+						ptitle = remspaces.sub(' ', ptitle)
+
+					if ptitle is None:
+						ptitle = u""
+
 					sentend = 75
 					
 					m = se_break.split(ptitle)
@@ -426,7 +430,9 @@ class MainPage(webapp.RequestHandler):
 
 			def entitydecode(match, uchr=uchr):
 				entity = match.group(1)
-				if entity.startswith('#x'):
+				if entity is None:
+					return match.group(0);
+				elif entity.startswith('#x'):
 					return uchr(int(entity[2:], 16))
 				elif entity.startswith('#'):
 					return uchr(int(entity[1:]))
