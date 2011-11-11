@@ -142,7 +142,8 @@ class MainPage(webapp.RequestHandler):
 		
 		res = self.response
 		out = res.out
-		
+		base_url = self.request.application_url
+
 		# Rate Limit check
 		
 		if p == '':
@@ -173,7 +174,7 @@ class MainPage(webapp.RequestHandler):
 					if req_count > 5:
 						logging.debug('rate limited - returning 403 - ' + str(p) + " __ " + str(req_count))
 						res.set_status(403)
-						out.write(ratelimit.substitute(up = upstr, p = p))
+						out.write(ratelimit.substitute(up = upstr, p = p, base_url = base_url))
 						return
 				else:
 					memcache.set("ratelimit:" + p, 1, 43200)
@@ -190,7 +191,7 @@ class MainPage(webapp.RequestHandler):
 				if req_count > 20:
 					logging.debug('rate limited - returning 403 - ' + str(ip) + " __ " + str(req_count))
 					res.set_status(403)
-					out.write(ratelimit.substitute(up = upstr, p = p))
+					out.write(ratelimit.substitute(up = upstr, p = p, base_url = base_url))
 					return
 			else:
 				memcache.set("ratelimit:" + ip, 1, 43200)
@@ -246,13 +247,13 @@ class MainPage(webapp.RequestHandler):
 
 		res = self.response
 		out = res.out
+		base_url = self.request.application_url
 
 		msg = ''
 		list = memcache.get('list')
 		if list:
 			msg = ' Serving ' + str(len(list)) + ' feeds in the past 24 hours';
 
-		base_url = self.request.application_url
 		out.write(homepage.substitute(countmsg = msg, base_url = base_url))     
 
 
