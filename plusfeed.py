@@ -280,7 +280,7 @@ class MainPage(webapp.RequestHandler):
 			
 					result = urlfetch.fetch(url, deadline=10)
 			
-				except urlfetch.Error:
+				except urlfetch.Error, err:
 					self.error(500)
 					out.write('<h1>500 Server Error</h1><p>' + str(err) + '</p>')
 					logging.error(err)
