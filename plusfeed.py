@@ -1,6 +1,7 @@
 import sys
 import re
 import logging
+import traceback
 
 import simplejson as json
 
@@ -297,7 +298,7 @@ class MainPage(webapp.RequestHandler):
 				txt = txt.replace(',]',',null]')
 				obj = json.loads(txt)
 				
-				posts = obj[1][0]
+				posts = obj[0][1][0]
 
 				if not posts:
 					#self.error(400)
@@ -423,6 +424,7 @@ class MainPage(webapp.RequestHandler):
 			self.error(500)
 			out.write('<h1>500 Server Error</h1><p>' + str(err) + '</p>')
 			logging.error(err)
+			traceback.print_exc()
 
 
 
