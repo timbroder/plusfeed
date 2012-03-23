@@ -511,6 +511,7 @@ def cleanGoogleJSON(json):
 			if lastchar == "{":
 				txt += "\""
 				inlabel = True
+			txt += char
 
 		else:
 			txt += char
