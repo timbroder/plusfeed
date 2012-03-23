@@ -507,11 +507,12 @@ def cleanGoogleJSON(json):
 				txt += "null"
 			txt += char
 
+		elif re.match("\d", char):
+			if lastchar == "{":
+				txt += "\""
+				inlabel = True
+
 		else:
-			if re.match("\d", char):
-				if lastchar == "{":
-					inlabel = True
-					txt += "\""
 			txt += char
 
 		lastchar = char
