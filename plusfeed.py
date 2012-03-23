@@ -26,7 +26,6 @@ allurls = re.compile(r'/(.*)')
 idurls = re.compile(r'[0-9]+')
 remtags = re.compile(r'<.*?>')
 remspaces = re.compile(r'\s+')
-commas = re.compile(',,',re.M)
 se_break = re.compile('[.!?:]\s+', re.VERBOSE)
 charrefpat = re.compile(r'&(#(\d+|x[\da-fA-F]+)|[\w.:-]+);?')
 
@@ -290,13 +289,15 @@ class MainPage(webapp.RequestHandler):
 			if result.status_code == 200:
 
 				base_url = self.request.application_url
-				txt = result.content
-				txt = txt[5:]
-				txt = commas.sub(',null,',txt)
-				txt = commas.sub(',null,',txt)
-				txt = txt.replace('[,','[null,')
-				txt = txt.replace(',]',',null]')
-				obj = json.loads(txt)
+				txt = cleanGoogleJSON(result.content)
+
+				try:
+					obj = json.loads(txt)
+				except json.JSONDecodeError, err:
+					logging.debug('JSON Decoding Error')
+					self.error(500)
+					out.write('<h1>500 Server Error</h1><p>There was an error decoding the JSON object from Google</p>')
+					return
 				
 				posts = obj[0][1][0]
 
@@ -454,6 +455,68 @@ class MainPage(webapp.RequestHandler):
 
 ####
 
+def cleanGoogleJSON(json):
+	instring = False
+	inescape = False
+	inlabel = False
+	txt = lastchar = ''
+	
+	for char in json[5:]:
+		if not instring and re.match("\s", char):
+			continue
+
+		if instring:
+			if inescape:
+				txt += char
+				inescape = False
+
+			elif char == '\\':
+				txt += char
+				inescape = True
+
+			elif char == "\"":
+				txt += char
+				instring = False
+			else:
+				txt += char
+
+			lastchar = char
+			continue
+
+		if inlabel:
+			if char == ":":
+				txt += "\""
+				inlabel = False
+			txt += char
+			lastchar = char
+			continue
+
+
+		# Add the missing nulls
+		if char == "\"":
+			txt += char
+			instring = True
+
+		elif char == ",":
+			if lastchar == "," or lastchar == "[" or lastchar == "{":
+				txt += "null"
+			txt += char
+
+		elif char == "]" or char == "}":
+			if lastchar == ",":
+				txt += "null"
+			txt += char
+
+		else:
+			if re.match("\d", char):
+				if lastchar == "{":
+					inlabel = True
+					txt += "\""
+			txt += char
+
+		lastchar = char
+
+	return txt
 
 import socket, struct
  
