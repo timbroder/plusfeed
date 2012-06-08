@@ -14,8 +14,7 @@ from string import Template
 from htmlentitydefs import name2codepoint
 from os import environ
 
-from google.appengine.ext import webapp
-from google.appengine.ext.webapp.util import run_wsgi_app
+import webapp2
 from google.appengine.api import urlfetch
 from google.appengine.api import memcache
 
@@ -136,33 +135,41 @@ ratelimittext = """<?xml version="1.0" encoding="utf-8"?>
 ratelimit = Template(ratelimittext)
 
 
-class MainPage(webapp.RequestHandler):
+class MainPage(webapp2.RequestHandler):
 
 	def get(self, p):
 		
 		res = self.response
 		out = res.out
 		base_url = self.request.application_url
+		debug = False
 
 		# Rate Limit check
-		
+
 		if p == '':
 			self.doHome()
 			return
 		
 		ip = environ['REMOTE_ADDR']
-		host, net = ipToNetAndHost(ip, 27)
-		
 		unrestricted = False
-		if net == '198.145.117.96':
+
+		if not debug:
+
+			# Skip IPv6 Addresses - always treat them as restricted
+			if ip.find(':') == -1:
+			    host, net = ipToNetAndHost(ip, 27)
+			    if net == '198.145.117.96':
+				    unrestricted = True
+		else:
 			unrestricted = True
 
 		# Rate Limit checks
-		# 5 per userid, 20 per ip - per 12 hours
+		# 5 per userid, 10 per ip - per 12 hours
 		now = datetime.today()
 		upstr = now.strftime(ATOM_DATE)
 		if not unrestricted:
-			logging.debug('Beginning rate limit check for ' + str(ip))
+			if debug:
+				logging.debug('Beginning rate limit check for ' + str(ip))
 			if p != '111091089527727420853':
 				req_count = None
 				try:
@@ -172,7 +179,8 @@ class MainPage(webapp.RequestHandler):
 				
 				if req_count:
 					if req_count > 5:
-						logging.debug('rate limited - returning 403 - ' + str(p) + " __ " + str(req_count))
+						if debug:
+							logging.debug('rate limited - returning 403 - ' + str(p) + " __ " + str(req_count))
 						res.set_status(403)
 						out.write(ratelimit.substitute(up = upstr, p = p, base_url = base_url))
 						return
@@ -188,8 +196,9 @@ class MainPage(webapp.RequestHandler):
 				req_count = None
 			
 			if req_count:
-				if req_count > 20:
-					logging.debug('rate limited - returning 403 - ' + str(ip) + " __ " + str(req_count))
+				if req_count > 10:
+					if debug:
+						logging.debug('rate limited - returning 403 - ' + str(ip) + " __ " + str(req_count))
 					res.set_status(403)
 					out.write(ratelimit.substitute(up = upstr, p = p, base_url = base_url))
 					return
@@ -220,7 +229,8 @@ class MainPage(webapp.RequestHandler):
 					last_seen = datetime.strptime(self.request.headers['If-Modified-Since'], HTTP_DATE_FMT)
 				
 					if ud and last_seen and ud <= last_seen:
-						logging.debug('returning 304')
+						if debug:
+							logging.debug('returning 304')
 						res.set_status(304)
 						return
 				except:
@@ -228,14 +238,15 @@ class MainPage(webapp.RequestHandler):
 			
 			op = memcache.get(p)
 			if op is not None:
-				logging.debug('delivering from cache')
+				if debug:
+					logging.debug('delivering from cache')
 				res.headers['Content-Type'] = 'application/atom+xml'
 				out.write(op)
 				return
 
 
 
-			self.doFeed(p)
+			self.doFeed(p, debug)
 			return
 		
 		# No matches 
@@ -258,15 +269,17 @@ class MainPage(webapp.RequestHandler):
 
 
 	
-	def doFeed(self, p):
+	def doFeed(self, p, debug):
+		apiKey = '<insert your Google API Key Here>'
 
 		res = self.response
 		out = res.out
 	
 		try:
-			logging.debug('re-requesting feed')
+			if debug:
+				logging.debug('re-requesting feed')
 			
-			url = 'https://plus.google.com/_/stream/getactivities/' + p + '/?sp=[1,2,"' + p + '",null,null,null,null,"social.google.com",[]]'
+			url = 'https://www.googleapis.com/plus/v1/people/' + p + '/activities/public?key=' + apiKey
 			
 			result = ''
 			
@@ -289,22 +302,22 @@ class MainPage(webapp.RequestHandler):
 			if result.status_code == 200:
 
 				base_url = self.request.application_url
-				txt = cleanGoogleJSON(result.content)
 
 				try:
-					obj = json.loads(txt)
+					obj = json.loads(result.content)
 				except json.JSONDecodeError, err:
-					logging.debug('JSON Decoding Error')
+					logging.error('JSON Decoding Error')
 					self.error(500)
 					out.write('<h1>500 Server Error</h1><p>There was an error decoding the JSON object from Google</p>')
 					return
 				
-				posts = obj[0][1][0]
+				posts = obj['items']
 
 				if not posts:
 					#self.error(400)
 					#out.write('<h1>400 - No Public Items Found</h1>')
-					logging.debug('No public feeds found')
+					if debug:
+						logging.debug('No public items found')
 					res.headers['Content-Type'] = 'application/atom+xml'
 					updated = datetime.today()
 					upstr = updated.strftime(ATOM_DATE)
@@ -315,13 +328,14 @@ class MainPage(webapp.RequestHandler):
 					return
 
 
-				author = posts[0][3]
-				authorimg = 'https:' + posts[0][18]
-				updated = datetime.fromtimestamp(float(posts[0][5])/1000)
+				author = posts[0]['actor']['displayName']
+				authorimg = posts[0]['actor']['image']['url']
+				updated = datetime.strptime(obj['updated'], '%Y-%m-%dT%H:%M:%S.%fZ')
 
 				feed = '<?xml version="1.0" encoding="UTF-8"?>\n'
 				feed += '<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">\n'
 				feed += '<title>' + author + ' - Google+ User Feed</title>\n'
+				feed += '<logo>' + authorimg + '</logo>\n'
 				feed += '<link href="https://plus.google.com/' + p + '" rel="alternate"></link>\n'
 				feed += '<link href="' + base_url + '/' + p + '" rel="self"></link>\n'
 				feed += '<id>https://plus.google.com/' + p + '</id>\n'
@@ -337,35 +351,38 @@ class MainPage(webapp.RequestHandler):
 						break
 					
 					
-					dt = datetime.fromtimestamp(float(post[5])/1000)
-					id = post[21]
-					permalink = "https://plus.google.com/" + post[21]
+					dt = datetime.strptime(post['updated'], '%Y-%m-%dT%H:%M:%S.%fZ')
+					permalink = post['url']
+					id = permalink.replace('https://plus.google.com/', '')
 					
 					desc = ''
-					
-					if post[47]:
-						desc = post[47]					
-					elif post[4]:
-						desc = post[4]
 
-					if post[44]:
-						desc = desc + ' <br/><br/><a href="https://plus.google.com/' + post[44][1] + '">' + post[44][0] + '</a> originally shared this post: ';
+					if post.get('annotation') is not None and post['annotation']:
+						desc = post['annotation']
+					elif post['object'].get('content') is not None and post['object']['content']:
+						desc = post['object']['content']				
+					elif post.get('title') is not None and post['title'] and post['verb'] != 'share':
+						desc = post['title']
+
+					if post['verb'] == 'share':
+						desc = desc + ' <br/><br/><a href="https://plus.google.com/' + post['object']['actor']['id'] + '">' + post['object']['actor']['displayName'] + '</a> originally shared this post: ';
 					
-					if post[66]:
+					if post['object'].get('attachments') is not None and len(post['object']['attachments']) > 0:
 						
-						if post[66][0][1]:						
-							if (post[66][0][3]) is None:
-								continue
-							desc = desc + ' <br/><br/><a href="' + post[66][0][1] + '">' + post[66][0][3] + '</a>'
+						if post['object']['attachments'][0]['objectType'] == 'article':
+							desc = desc + ' <br/><br/><a href="' + post['object']['attachments'][0]['url'] + '">' + post['object']['attachments'][0]['displayName'] + '</a>'
+							if len(post['object']['attachments']) > 1 and post['object']['attachments'][1]['objectType'] == 'photo':
+								desc = desc + ' <p><a href="' + post['object']['attachments'][1]['fullImage']['url'] + '"><img src="' + post['object']['attachments'][1]['image']['url'] + '"/></a></p>'
 
-						if post[66][0][6]:
-							if post[66][0][6][0][1].find('image') > -1:
-								desc = desc + ' <p><img src="http:' + post[66][0][6][0][2] + '"/></p>'
+						elif post['object']['attachments'][0]['objectType'] == 'video':
+							if post['object']['attachments'][0].get('displayName') is not None:
+								desc = desc + ' <br/><br/><a href="' + post['object']['attachments'][0]['url'] + '">' + post['object']['attachments'][0]['displayName'] + '</a>'
 							else:
-								try:
-									desc = desc + ' <a href="' + post[66][0][6][0][8] + '">' + post[66][0][6][0][8] + '</a>'
-								except:
-									sys.exc_clear()
+								desc = desc + ' <br/><br/><a href="' + post['object']['attachments'][0]['url'] + '">' + post['object']['attachments'][0]['url'] + '</a>'
+
+						elif post['object']['attachments'][0]['objectType'] == 'photo':
+							desc = desc + ' <p><a href="' + post['object']['attachments'][0]['fullImage']['url'] + '"><img src="' + post['object']['attachments'][0]['image']['url'] + '"/></a></p>'
+
 					
 					if desc == '':
 						ptitle = permalink					
@@ -397,7 +414,7 @@ class MainPage(webapp.RequestHandler):
 				  
 				feed += '</feed>\n'
 				
-				memcache.set(p, feed, 15 * 60)
+				memcache.set(p, feed, 30 * 60)
 				memcache.set('time_' + p, updated)
 				
 				mlist = memcache.get('list')
@@ -417,9 +434,10 @@ class MainPage(webapp.RequestHandler):
 
 			
 			else:
-				self.error(404)
-				out.write('<h1>404 - Not Found</h1>')
-				logging.debug(p + ' Not Found')
+				self.error(503)
+				res.headers['Retry-After'] = str(600)
+				out.write('<h1>Google API returned error ' + str(result.status_code) + ' - Unable to process request for UID ' + p + '</h1>')
+				logging.error('Google API returned error ' + str(result.status_code) + ' - Unable to process request for UID ' + p)
 		
 		except Exception, err:
 			self.error(500)
@@ -455,71 +473,6 @@ class MainPage(webapp.RequestHandler):
 
 ####
 
-def cleanGoogleJSON(json):
-	instring = False
-	inescape = False
-	inlabel = False
-	txt = lastchar = ''
-	
-	for char in json[5:]:
-		if not instring and re.match("\s", char):
-			continue
-
-		if instring:
-			if inescape:
-				txt += char
-				inescape = False
-
-			elif char == '\\':
-				txt += char
-				inescape = True
-
-			elif char == "\"":
-				txt += char
-				instring = False
-			else:
-				txt += char
-
-			lastchar = char
-			continue
-
-		if inlabel:
-			if char == ":":
-				txt += "\""
-				inlabel = False
-			txt += char
-			lastchar = char
-			continue
-
-
-		# Add the missing nulls
-		if char == "\"":
-			txt += char
-			instring = True
-
-		elif char == ",":
-			if lastchar == "," or lastchar == "[" or lastchar == "{":
-				txt += "null"
-			txt += char
-
-		elif char == "]" or char == "}":
-			if lastchar == ",":
-				txt += "null"
-			txt += char
-
-		elif re.match("\d", char):
-			if lastchar == "{":
-				txt += "\""
-				inlabel = True
-			txt += char
-
-		else:
-			txt += char
-
-		lastchar = char
-
-	return txt
-
 import socket, struct
  
 def dottedQuadToNum(ip):
@@ -545,12 +498,4 @@ def ipToNetAndHost(ip, maskbits):
 	 
 	return numToDottedQuad(net), numToDottedQuad(host)
 
-application = webapp.WSGIApplication([(r'/(.*)', MainPage)],debug=True)
-
-def main():
-	run_wsgi_app(application)
-
-if __name__ == "__main__":
-	main()
-	
-	
+app = webapp2.WSGIApplication([(r'/(.*)', MainPage)],debug=True)
